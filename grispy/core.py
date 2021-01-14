@@ -422,28 +422,37 @@ class GriSPy(object):
     @staticmethod
     def _distance_func(metric, dim):
         func = metric if callable(metric) else METRICS[metric]
-        return lambda centre_0, centres: EMPTY_ARRAY.copy() if len(centres) == 0 else func(centre_0, centres, dim)
+        return lambda centre_0, centres: EMPTY_ARRAY.copy() if len(
+            centres) == 0 else func(centre_0, centres, dim)
 
     def _get_job_slices(self, n_elements):
-        chunk_sizes = np.full(self.n_jobs, n_elements//self.n_jobs, dtype=int)
+        chunk_sizes = np.full(self.n_jobs,
+                              n_elements // self.n_jobs,
+                              dtype=int)
         chunk_sizes[:(n_elements % self.n_jobs)] += 1
         start_indices = np.zeros(self.n_jobs, dtype=int)
         start_indices[1:] = np.cumsum(chunk_sizes[:-1])
         end_indices = start_indices + chunk_sizes
-        job_slices = [slice(start_indices[jobid], end_indices[jobid]) for jobid in range(self.n_jobs)]
+        job_slices = [
+            slice(start_indices[jobid], end_indices[jobid])
+            for jobid in range(self.n_jobs)
+        ]
         return job_slices
 
     def _get_neighbor_distance(self, centres, neighbor_cells):
         """Retrieve neighbor distances whithin the given cells."""
-
-        n_dis, n_idxs = zip(*Parallel(n_jobs=self.n_jobs, batch_size=1, verbose=self.verbose)(
-            (delayed(GriSPy._get_neighbor_distance_core)(centres[job_slice], neighbor_cells[job_slice], self.dim_, self.grid_, self.data, GriSPy._distance_func(self.metric, self.dim_))
-             for job_slice in self._get_job_slices(len(centres)))))
+        n_dis, n_idxs = zip(
+            *Parallel(n_jobs=self.n_jobs, batch_size=1, verbose=self.verbose)
+            ((delayed(GriSPy._get_neighbor_distance_core)
+              (centres[job_slice], neighbor_cells[job_slice], self.dim_, self.
+               grid_, self.data, GriSPy._distance_func(self.metric, self.dim_))
+              for job_slice in self._get_job_slices(len(centres)))))
 
         return sum(n_dis, []), sum(n_idxs, [])
 
     @staticmethod
-    def _get_neighbor_distance_core(centres, neighbor_cells, dim, grid, data, compute_distance):
+    def _get_neighbor_distance_core(centres, neighbor_cells, dim, grid, data,
+                                    compute_distance):
         n_idxs, n_dis = [], []
         for centre, neighbors in zip(centres, neighbor_cells):
 
@@ -510,14 +519,24 @@ class GriSPy(object):
         cell_size = self.k_bins_[1, :] - self.k_bins_[0, :]
         cell_radii = 0.5 * np.sum(cell_size ** 2) ** 0.5
 
-        neighbor_cells = sum(Parallel(n_jobs=self.n_jobs, batch_size=1, verbose=self.verbose)(
-            (delayed(GriSPy._get_neighbor_cells_core)(centres[job_slice], k_cell_min[job_slice, :], k_cell_max[job_slice, :], distance_lower_bound[job_slice] if shell_flag else distance_lower_bound, distance_upper_bound[job_slice], cell_size, cell_radii, shell_flag, self.dim_, self.k_bins_, GriSPy._distance_func(self.metric, self.dim_))
-             for job_slice in self._get_job_slices(len(centres)))), [])
+        neighbor_cells = sum(
+            Parallel(n_jobs=self.n_jobs, batch_size=1, verbose=self.verbose)(
+                (delayed(GriSPy._get_neighbor_cells_core)(
+                    centres[job_slice], k_cell_min[job_slice, :],
+                    k_cell_max[job_slice, :], distance_lower_bound[job_slice]
+                    if shell_flag else distance_lower_bound,
+                    distance_upper_bound[job_slice], cell_size, cell_radii,
+                    shell_flag, self.dim_, self.k_bins_,
+                    GriSPy._distance_func(self.metric, self.dim_))
+                 for job_slice in self._get_job_slices(len(centres)))), [])
 
         return neighbor_cells
 
     @staticmethod
-    def _get_neighbor_cells_core(centres, k_cell_min, k_cell_max, distance_lower_bound, distance_upper_bound, cell_size, cell_radii, shell_flag, dim, k_bins, compute_distance):
+    def _get_neighbor_cells_core(centres, k_cell_min, k_cell_max,
+                                 distance_lower_bound, distance_upper_bound,
+                                 cell_size, cell_radii, shell_flag, dim,
+                                 k_bins, compute_distance):
 
         neighbor_cells = []
 
